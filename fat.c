@@ -309,30 +309,16 @@ int fat_open(char *name, char mode)
 	char* dname = dirname(namecopy1);
 	char* bname = basename(namecopy2);
 
-	// char str[] ="- This, a sample string.";
-	// char * pch;
-	// printf ("Splitting string \"%s\" into tokens:\n",namecopy1);
-	// pch = strtok (namecopy1," ,.-");
-
-	
-	// while (pch != NULL)
-	// {
-	// 	printf ("%s\n",pch);
-	// 	pch = strtok (NULL, " ,.-");
-	// }
-
 	debug_printf("directory name: %s\n", dname);
 	debug_printf("file name: %s\n", bname);
 
 	printf("directory name: %s\n", dname);
 	printf("file name: %s\n", bname);
 
-
-
-
 	//get the sector number of this directory
 	int directory_sector = dir_lookup(dname);
-	printf("directory_sector: %d\n", directory_sector);
+
+
 	//start of real data 97 + offset 23(25-3) = 120
 	
 	if(directory_sector < 0)
@@ -343,9 +329,8 @@ int fat_open(char *name, char mode)
 
 	//get the sector number of this file
 	int file_entry_number = file_lookup(bname, &directory_sector);
-	printf("file_entry_number: %d\n", file_entry_number);
 
-	
+
 	if(file_entry_number < 0 && mode == 'r')
 	{
 		//file needs to exist for read mode
@@ -355,21 +340,38 @@ int fat_open(char *name, char mode)
 	{
 		/* need to create new file */
 		// fopen(name, "W+"); /*create the new file*/
-
 		dir_create(bname, directory_sector);
 		// dir_create(bname, directory_sector);
 		return 0;
 	}
-
+	
+	printf("directory_sector: %d\n", directory_sector);
+	printf("file_entry_number: %d\n", file_entry_number);
 
 	//read the file structure
 	fat_file_t f_entry;
 	read_file_entry(&f_entry, directory_sector, file_entry_number);
 	//truncate file if in write mode
+
 	if(mode == 'w' && f_entry.size > 0)
 	{
 		/* existing file needs to be truncated in write mode */
+		// make the whole block to 0
+		int file_context = start_of_data() + f_entry.first_cluster - 2;
+		int bytes_cluster = bytes_sector() * sectors_cluster();
+		uint8_t cluster[bytes_cluster];
+		for (int i; i< bytes_cluster ;i++)
+		{
+			cluster[i] = 0x00;
+		}
+		write_block(file_context,cluster);
+		printf("Block %d is cleaned to 0x00 \n", file_context);
+
+		return handle;
 	}
+
+
+
 	//set up file handle
 	debug_printf("using file handle %d\n", handle);
 	file_handles[handle].file_sector = directory_sector;
@@ -377,6 +379,7 @@ int fat_open(char *name, char mode)
 	if(mode == 'a')
 	{
 		/*initialise file pointer to end of file*/
+		return handle;
 	}
 	else
 	{
@@ -591,6 +594,44 @@ int fat_write(int fd, void *buf, unsigned int count)
 	(void)buf;
 	(void)count;
 	/* check input arguments for errors */
+	if(!mounted)
+	{
+		debug_printf("not mounted\n");
+		return -1;
+	}
+	if(fd < 0 || fd >= NUM_HANDLES)
+	{
+		debug_printf("invalid file handle\n");
+		return -1;
+	}
+	if(!file_handles[fd].open)
+	{
+		debug_printf("file not open\n");
+		return -1;
+	}
+	// if(file_handles[fd].mode != 'r')
+	// {
+	// 	debug_printf("wrong file mode\n");
+	// 	return -1;
+	// }
+	if(count == 0)
+	{
+		return 0;
+	}
+	file_handles[fd]
+
+
+
+
+
+
+
+
+	
+	// printf("		this is the fd %d  \n",fd);
+
+
+
 	/* locate the first cluster of the file */
 	/* handle situation where file size is zero and no cluster has been
 	allocated - allocate the first cluster */
