@@ -17,10 +17,14 @@ int main(int argc, char **argv)
 	{
 		debug_printing = false;
 	}
-	fat_mount("new.img");
+	fat_mount("../Img/fat4m.img");
 	unsigned char buf[512];
-	int file = fat_open("SUBDIR/SMALL.TXT", 'r');
+	// int file = fat_open("NOTES/WEEK2/WEEK2.TXT", 'r');
+	int file = fat_open("NOTES/WEEK2/TEST9.TXT", 'w');
+
 	int rval = fat_read(file, &buf, 500);
+	int wval = fat_write(file, &buf, 500);
+
 	printf("read %d bytes\n", rval);
 	printf("%s", buf);
 	fat_close(file);

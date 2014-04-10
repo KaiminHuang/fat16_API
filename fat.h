@@ -23,23 +23,6 @@ int fat_mount(char* disk_image);
 @return 0 for success, -1 for failure
 */
 int fat_umount(void);
-
-/** Read from an already opened file
-
-@param fd File descriptor
-@param buf Buffer for file contents to be placed into
-@param count Maximum number of bytes to read
-@return Number of bytes read or -1 for error
-*/
-int fat_read(int fd, void *buf, unsigned int count);
-/** Seek in already opened file
-
-@param fd File descriptor
-@param offset Offset in bytes based on whence
-@param whence One of fat_SEEK_SET, fat_SEEK_CUR or fat_SEEK_END
-@return New offset in file after seek or -1 for error
-*/
-int fat_lseek(int fd, unsigned int offset, int whence);
 /** Open a file inside the currently mounted disk image
 
 Write and append modes create a new file if it doesn't exist. Write mode
@@ -57,6 +40,14 @@ int fat_open(char *name, char mode);
 @return 0 for success, -1 for failure
 */
 int fat_close(int fd);
+/** Read from an already opened file
+
+@param fd File descriptor
+@param buf Buffer for file contents to be placed into
+@param count Maximum number of bytes to read
+@return Number of bytes read or -1 for error
+*/
+int fat_read(int fd, void *buf, unsigned int count);
 /** Write from an already opened file
 
 @param fd File descriptor
@@ -65,7 +56,14 @@ int fat_close(int fd);
 @return Number of bytes written to file or -1 for error
 */
 int fat_write(int fd, void *buf, unsigned int count);
+/** Seek in already opened file
 
+@param fd File descriptor
+@param offset Offset in bytes based on whence
+@param whence One of fat_SEEK_SET, fat_SEEK_CUR or fat_SEEK_END
+@return New offset in file after seek or -1 for error
+*/
+int fat_lseek(int fd, unsigned int offset, int whence);
 /** Remove a file
 
 FAT doesn't have inodes, so this removes the file directly. If file is open, the
@@ -89,4 +87,9 @@ The directory must already be empty of files
 */
 int fat_rmdir(char *path);
 
+/** create a directory
+*/
+int file_create(char* bname, int directory_sector);
+int dir_create(char* bname, int directory_sector);
+int check_block(int directory_sector);
 #endif //FAT_H

@@ -69,11 +69,11 @@ int fat_mkfs(char* name, unsigned int size)
 	int non_reserved_sectors = total_sectors - reserved_sectors;
 	//integer division, round up
 	int non_reserved_clusters =
-		(non_reserved_sectors + sectors_per_cluster - 1) / sectors_per_cluster;
+	(non_reserved_sectors + sectors_per_cluster - 1) / sectors_per_cluster;
 	int entries_per_fat_sector = DISK_BLOCK_SIZE / sizeof(uint16_t);
 	//again, integer division, round up
 	bs_struct.bpb.sectors_fat =
-		(uint16_t)((non_reserved_clusters + entries_per_fat_sector - 1) /
+	(uint16_t)((non_reserved_clusters + entries_per_fat_sector - 1) /
 		entries_per_fat_sector);
 	bs_struct.bpb.sectors_track = 0;
 	bs_struct.bpb.heads = 0;
@@ -103,8 +103,8 @@ int fat_mkfs(char* name, unsigned int size)
 	/* file allocation table */
 	debug_printf("making FAT\n");
 	int fat_entries =
-		((int)bs_struct.bpb.sectors_fat * (int)bs_struct.bpb.bytes_sector) /
-		(int)sizeof(uint16_t);
+	((int)bs_struct.bpb.sectors_fat * (int)bs_struct.bpb.bytes_sector) /
+	(int)sizeof(uint16_t);
 	uint16_t fat[fat_entries];
 	fat[0] = (uint16_t)(0xff + (bs_struct.bpb.mdt << 8));
 	fat[1] = 0xffff;
@@ -133,10 +133,10 @@ int fat_mkfs(char* name, unsigned int size)
 	//indicating no files exist
 	bzero(&root_dir_bytes, (size_t)root_dir_size);
 	int root_dir_start = bs_struct.bpb.reserved_sectors +
-		bs_struct.bpb.fats * bs_struct.bpb.sectors_fat;
+	bs_struct.bpb.fats * bs_struct.bpb.sectors_fat;
 	//integer division, round up
 	int root_sectors =
-		(root_dir_size + bs_struct.bpb.bytes_sector - 1) / bs_struct.bpb.bytes_sector;
+	(root_dir_size + bs_struct.bpb.bytes_sector - 1) / bs_struct.bpb.bytes_sector;
 	for(int i = 0; i < root_sectors; ++i)
 	{
 		if(write_block(root_dir_start + i,
@@ -262,11 +262,11 @@ int fat_open(char *name, char mode)
 		return -1;
 	}
 	/* allow mode to be 'w' or 'a' as well */
-	if(mode != 'r')
-	{
-		debug_printf("invalid mode\n");
-		return -1;
-	}
+	// if(mode != 'r')
+	// {
+	// 	debug_printf("invalid mode\n");
+	// 	return -1;
+	// }
 	//find an unused handle
 	int handle = -1;
 	for(int i = 0; i < NUM_HANDLES; ++i)
@@ -282,24 +282,70 @@ int fat_open(char *name, char mode)
 		debug_printf("all file handles in use\n");
 		return -1;
 	}
+
+	// print out how many '/' in the path
+	// int numOfSubd = 0;
+	// for(int i=0;name[i]!='\0';i++)
+	// {	
+	// 	if(name[i]=='/')
+	// 	{
+	// 		numOfSubd++;
+	// 		break;
+	// 	}
+	// }
+	// printf("there is %d '/' in the string\n", numOfSubd);
+
 	//traverse directories, find the file
 	char namecopy1[MAX_PATH_LEN + 1];
 	strncpy(namecopy1, name, MAX_PATH_LEN);
 	namecopy1[MAX_PATH_LEN] = '\0';
+
 	char namecopy2[MAX_PATH_LEN + 1];
 	strncpy(namecopy2, name, MAX_PATH_LEN);
 	namecopy2[MAX_PATH_LEN] = '\0';
+
+	// set dname to direction name
+	// and set bname to base name
 	char* dname = dirname(namecopy1);
 	char* bname = basename(namecopy2);
+
+	// char str[] ="- This, a sample string.";
+	// char * pch;
+	// printf ("Splitting string \"%s\" into tokens:\n",namecopy1);
+	// pch = strtok (namecopy1," ,.-");
+
+	
+	// while (pch != NULL)
+	// {
+	// 	printf ("%s\n",pch);
+	// 	pch = strtok (NULL, " ,.-");
+	// }
+
 	debug_printf("directory name: %s\n", dname);
 	debug_printf("file name: %s\n", bname);
+
+	printf("directory name: %s\n", dname);
+	printf("file name: %s\n", bname);
+
+
+
+
+	//get the sector number of this directory
 	int directory_sector = dir_lookup(dname);
+	printf("directory_sector: %d\n", directory_sector);
+	//start of real data 97 + offset 23(25-3) = 120
+	
 	if(directory_sector < 0)
 	{
 		debug_printf("directory does not exist");
 		return -1;
 	}
+
+	//get the sector number of this file
 	int file_entry_number = file_lookup(bname, &directory_sector);
+	printf("file_entry_number: %d\n", file_entry_number);
+
+	
 	if(file_entry_number < 0 && mode == 'r')
 	{
 		//file needs to exist for read mode
@@ -308,7 +354,14 @@ int fat_open(char *name, char mode)
 	if(file_entry_number < 0 && (mode =='w' || mode == 'a'))
 	{
 		/* need to create new file */
+		// fopen(name, "W+"); /*create the new file*/
+
+		dir_create(bname, directory_sector);
+		// dir_create(bname, directory_sector);
+		return 0;
 	}
+
+
 	//read the file structure
 	fat_file_t f_entry;
 	read_file_entry(&f_entry, directory_sector, file_entry_number);
@@ -525,7 +578,13 @@ int fat_lseek(int fd, unsigned int offset, int whence)
 	file_handles[fd].fp = new_fp;
 	return (int)file_handles[fd].fp;
 }
+/** Write from an already opened file
 
+@param fd File descriptor
+@param buf Buffer for file contents to come from
+@param count Maximum number of bytes to write
+@return Number of bytes written to file or -1 for error
+*/
 int fat_write(int fd, void *buf, unsigned int count)
 {
 	(void)fd;
@@ -587,9 +646,236 @@ int fat_rmdir(char *path)
 	(void) path;
 	/* check input arguments for errors */
 	/* traverse directories, find the file and the directory it's in */
+	if(!mounted)
+	{
+		debug_printf("disk not mounted\n");
+		return -1;
+	}
+	int handle = -1;
+	for(int i = 0; i < NUM_HANDLES; ++i)
+	{
+		if(file_handles[i].open == false)
+		{
+			handle = i;
+			break;
+		}
+	}
+	if(handle == -1)
+	{
+		debug_printf("all file handles in use\n");
+		return -1;
+	}
 	/* check the directory to be removed isn't the root directory */
 	/* check the directory doesn't contain any files */
 	/* work along FAT chain, mark each cluster as free */
 	/* mark file entry as deleted, write entry to disk */
 	return -1;
+}
+
+// //returns the location of new created directory, negative = er
+// int dir_create(char* bname, int directory_sector)
+// {
+// 	(void) bname;
+// 	//check wehter the block is already full
+// 	bool full_flag = true;
+// 	int start_of_data = start_of_root_dir() + root_dir_sectors();
+// 	int start_of_fat_data = start_of_fat();
+
+
+// 	int fat_entries_sector = bytes_sector() / (int)sizeof(uint16_t);
+// 	uint8_t fat_bytes[bytes_sector()];
+// 	read_block(start_of_fat(), &fat_bytes);
+// 	uint16_t fat_entries[fat_entries_sector];
+
+// 	memcpy(&fat_entries, &fat_bytes, (size_t)bytes_sector());
+
+// 	//read sector into a memory block
+// 	uint8_t dir_sector[bytes_sector()];
+// 	read_block(directory_sector, &dir_sector);
+// 	fat_file_t dir_files[dir_entries_sector()];
+
+// 	char* fname;
+// 	char* fext;
+// 	int i;
+
+// 	memcpy(&dir_files, &dir_sector, (size_t)bytes_sector());
+
+// 	for(i = 0; i < dir_entries_sector(); ++i)
+// 	{
+// 		// printf("!!!dir_files[i].name[0] %d \n" , dir_files[i].name[0]);
+// 		// find an empty entry
+// 		if (dir_files[i].name[0] == 0x00)
+// 		{
+// 			//find an empty entry in fat
+// 			for(int j = 0; j < fat_entries_sector; ++j)
+// 			{
+// 				if ( fat_entries[j] == 0x0000)
+// 				{
+
+// 					printf("@@@the firss empty fat_entreies %d \n", i);
+// 					//assume one block is enough for the new data
+// 					// fat_entries[i] == 0xffff;
+// 					fat_file_t file[dir_entries_sector()];
+
+
+// 					name_to_83(bname,&fname, &fext);
+// 					printf("@@@ name; = %s \n",&fname);	
+// 					printf("@@@ ext; = %s \n",&fext);
+
+// 					memcpy(dir_files[i].name,&fname,FAT_FILE_LEN);
+// 					memcpy(dir_files[i].ext,&fext,FAT_EXT_LEN);
+// 					dir_files[i].first_cluster = (uint16_t)j;
+
+// 					write_file_entry(dir_files[i],directory_sector,i);
+// 					printf(" shit, hey I'm here == %d \n", (uint16_t)j);
+
+// 					full_flag = false;
+// 					break;			
+// 				}
+// 			}
+// 			break;
+// 		}
+// 	}
+// 	//if the block is already full create a new one
+// 	if(full_flag){
+// 		// create a new block
+// 		// set fat to this block
+// 		// create a entry inside this block
+// 		for(int j = 0; j < fat_entries_sector; ++j)
+// 		{
+// 			if ( fat_entries[j] == 0x0000)
+// 			{
+// 				dir_files[i]
+// 				//set the fat to new block
+// 				fat_entries[int(fat_entries[i].first_cluster)] = j;
+// 				fat_entries[j] = 0xffff;
+// 				directory_sector = start_of_data + j;
+// 			}
+// 		}
+// 	}
+// 	return start_of_data + i;
+// }
+int dir_create(char* bname, int directory_sector)
+{
+
+
+	(void) bname;
+	(void) directory_sector;
+
+
+
+
+	if(check_block(directory_sector))
+	{
+
+		file_create(bname, directory_sector);
+	}
+	else// handles for the situation that the block is already full
+	{
+		printf(" The block is full \n");
+
+
+		// int old_block = directory_sector - start_of_data;
+		// int new_block;
+		// int new_directory_sector;
+
+		// // there is only one block used to store the dir, and it's full
+		// if (fat_entries[old_block] == free_cluster)
+		// {
+		// 	//find an empty entry in fat
+		// 	for(new_block = 0; new_block < fat_entries_sector; ++new_block)
+		// 	{
+		// 		if ( fat_entries[new_block] == free_cluster)
+		// 		{
+		// 			write_fat_entry((uint16_t)old_block,(uint16_t)new_block);
+		// 			break;
+		// 		}
+		// 	}
+		// 	new_directory_sector = new_block + start_of_data;
+
+		// 	read_block(new_directory_sector, &dir_sector);
+		// 	memcpy(&dir_files, &dir_sector, (size_t)bytes_sector());
+
+		// }
+	}
+		// int new block
+	// printf(" *******old_block %d \n", old_block);
+	return 0;
+
+}
+int file_create(char* bname, int directory_sector)
+{
+	int fat_entries_sector = bytes_sector() / (int)sizeof(uint16_t);
+	uint8_t fat_bytes[bytes_sector()];
+	read_block(start_of_fat(), &fat_bytes);
+	uint16_t fat_entries[fat_entries_sector];
+	memcpy(&fat_entries, &fat_bytes, (size_t)bytes_sector());
+
+	int start_of_data = start_of_root_dir() + root_dir_sectors();
+	int start_of_fat_data = start_of_fat();
+	//read sector into a memory block
+	uint8_t dir_sector[bytes_sector()];
+	read_block(directory_sector, &dir_sector);
+	fat_file_t dir_files[dir_entries_sector()];
+	memcpy(&dir_files, &dir_sector, (size_t)bytes_sector());
+
+	char* fname; // file name
+	char* fext;  // extension name
+	int i;
+	name_to_83(bname,&fname, &fext);
+	
+	printf("fat_entries[34]  %d \n", fat_entries[34]);
+
+	for(i = 0; i < dir_entries_sector(); ++i)
+	{
+			// printf("!!!dir_files[i].name[0] %d \n" , dir_files[i].name[0]);
+			// find an empty entry
+		if (dir_files[i].name[0] == 0x00)
+		{
+				//find an empty entry in fat
+			for(int j = 0; j < fat_entries_sector; ++j)
+			{
+				if ( fat_entries[j] == free_cluster)
+				{
+					printf("@@@the first empty entreies %d \n", j);
+
+					memcpy(dir_files[i].name,&fname,FAT_FILE_LEN);
+					memcpy(dir_files[i].ext,&fext,FAT_EXT_LEN);
+					dir_files[i].first_cluster = (uint16_t)j;
+
+					write_file_entry(dir_files[i],directory_sector,i);
+						// assume one block is enough for the new data
+					write_fat_entry((uint16_t)j,(uint16_t)0xffff);;
+					printf(" empty block == %d \n", (uint16_t)j);
+					break;
+				}
+			}
+			break;
+		}
+	}
+	return 0;
+}
+//check weather there is spare room for an entry
+int check_block(int directory_sector)
+{
+
+	int start_of_data = start_of_root_dir() + root_dir_sectors();
+	int start_of_fat_data = start_of_fat();
+	//read sector into a memory block
+	uint8_t dir_sector[bytes_sector()];
+	read_block(directory_sector, &dir_sector);
+	fat_file_t dir_files[dir_entries_sector()];
+	memcpy(&dir_files, &dir_sector, (size_t)bytes_sector());
+
+	for(int i = 0; i < dir_entries_sector(); ++i)
+	{
+		// printf("!!!dir_files[i].name[0] %d \n" , dir_files[i].name[0]);
+		// find an empty entry
+		// printf("--->%d\n",dir_files[i].name[0]);
+		if (dir_files[i].name[0] == 0x00)
+		{
+			return true;
+		}
+	}
+	return false;
 }

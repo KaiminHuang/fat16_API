@@ -117,6 +117,8 @@ int start_of_data()
 
 int dir_entries_sector()
 {
+	// printf("~~~~~bytes_sector() = %d \n",bytes_sector());
+	// printf("~~~~~(int)sizeof(fat_file_t)() = %d \n",(int)sizeof(fat_file_t));
 	return bytes_sector() / (int)sizeof(fat_file_t);
 }
 
@@ -130,10 +132,20 @@ int root_dir_sectors()
 
 int data_cluster_to_sector(uint16_t cluster)
 {
+
+	
+
 	fat_bs_t bs_struct;
 	memcpy(&bs_struct, &boot_sector, sizeof(boot_sector));
+	// printf("		start_of_data() %d \n",start_of_data());
+	// printf("		cluster %d \n",cluster);
+	// printf("		FAT_CLUSTER_OFFSET %d \n",FAT_CLUSTER_OFFSET);
+	// printf("		bs_struct.bpb.sectors_cluster %d \n",bs_struct.bpb.sectors_cluster);
+
 	int sector = start_of_data() +
 		(((int)cluster - FAT_CLUSTER_OFFSET) * bs_struct.bpb.sectors_cluster);
+		
+		
 	return sector;
 }
 
@@ -254,9 +266,8 @@ int chain_length(uint16_t start_cluster)
 
 int write_fat_entry(uint16_t entry, uint16_t value)
 {
-	int entry_bytes = (int)entry * (int)sizeof(uint16_t);
 	int fat_entries_sector = bytes_sector() / (int)sizeof(uint16_t);
-	int sector = entry_bytes / fat_entries_sector;
+	int sector = entry / fat_entries_sector;
 	int entry_offset = (int)entry % fat_entries_sector;
 	uint8_t fat_bytes[bytes_sector()];
 	read_block(start_of_fat() + sector, &fat_bytes);
@@ -396,13 +407,18 @@ int dir_lookup(char* path)
 	//traverse the directory structure
 	while(dname_part != NULL)
 	{
+		found = false;
 		debug_printf("looking for directory %s\n", dname_part);
+		printf("	====looking for directory %s\n", dname_part);
+		printf("	dir_entries_sector() = %d \n",dir_entries_sector());
 		while(!found)
 		{
 			//read sector into a memory block
 			uint8_t dir_sector[bytes_sector()];
 			read_block(dlocation, &dir_sector);
 			fat_file_t dir_files[dir_entries_sector()];
+			
+
 			memcpy(&dir_files, &dir_sector, (size_t)bytes_sector());
 			//search the memory block for matching name
 			for(int i = 0; i < dir_entries_sector(); ++i)
@@ -410,6 +426,8 @@ int dir_lookup(char* path)
 				if(dir_files[i].name[0] == 0x00)
 				{
 					//not found, don't need to keep looking
+					printf("	//not found, don't need to keep looking");
+
 					break;
 				}
 				else if(dir_files[i].name[0] == deleted_file)
@@ -433,6 +451,7 @@ int dir_lookup(char* path)
 				{
 					//got a directory with the correct name
 					dlocation = data_cluster_to_sector(dir_files[i].first_cluster);
+					printf("	dir_files[i].first_cluster: %d \n", dir_files[i].first_cluster);
 					found = true;
 					break;
 				}
@@ -476,6 +495,8 @@ int dir_lookup(char* path)
 				}
 			}
 		}
+		printf("	dlocation: %d \n", dlocation);
+
 		dname_part = strtok(NULL, "/");
 	}
 	return dlocation;
