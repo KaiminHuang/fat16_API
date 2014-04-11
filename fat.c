@@ -322,7 +322,7 @@ int fat_open(char *name, char mode)
 	{
 		/* need to create new file */
 		// fopen(name, "W+"); /*create the new file*/
-		dir_create(bname, directory_sector);
+		file_create(bname, directory_sector);
 		// dir_create(bname, directory_sector);
 		return 0;
 	}
@@ -394,6 +394,7 @@ int fat_close(int fd)
 	//usually flush() would get called here
 	//but this implementation doesn't have any buffer/cache
 	//don't need to do that
+
 	fat_file_t f_entry;
 	read_file_entry(&f_entry, file_handles[fd].file_sector,
 		file_handles[fd].file_offset);
@@ -401,8 +402,18 @@ int fat_close(int fd)
 	if(file_handles[fd].unlink == true)
 	{
 		debug_printf("unlinking file on close\n");
-		/* find first cluster of file */
-		/* work along FAT chain, mark each cluster as free */
+		//set the entry and linked entry in fat to 00
+		int fat_entries_sector = bytes_sector() / (int)sizeof(uint16_t);
+		uint8_t fat_bytes[bytes_sector()];
+		read_block(start_of_fat(), &fat_bytes);
+		uint16_t fat_entries[fat_entries_sector];
+		memcpy(&fat_entries, &fat_bytes, (size_t)bytes_sector());
+
+		int next = f_entry.first_cluster;
+		while (fat_entries[next] != 0xffff){
+			write_fat_entry(next,(uint16_t)0x0000);
+			next = (uint16_t)fat_entries[fat_entries[next]];
+		}
 	}
 	return 0;
 }
@@ -621,25 +632,6 @@ int fat_write(int fd, void *buf, unsigned int count)
 	}
 
 	return strlen(buf);
-	/* handle situation where file size is zero and no cluster has been
-	allocated - allocate the first cluster */
-	/* calculate how many clusters into the file the filepointer is and follow
-	FAT chain to reach current cluster*/
-	/* calculate filepointer location in current cluster */
-	/* while more data remains to write */
-	/*{*/
-		/* if there is any data before filepointer in current cluster, read it
-		into memory*/
-
-		/* calculate number of bytes that can be written into current cluster */
-		/* copy bytes into cluster-sized memory buffer */
-		/* write cluster to disk */
-		/* update counters - bytes left to write, file size, file pointer */
-		/* update timestamps */
-		/* write timestamps and file size in file entry to disk */
-		/* if cluster is full, find next cluster */
-		/* allocate a new cluster if necessary */
-	/*}*/
 }
 
 int fat_unlink(char *path)
@@ -652,10 +644,10 @@ int fat_unlink(char *path)
 	}
 	/* traverse directories, find the file and the directory it's in */
 	char namecopy1[MAX_PATH_LEN + 1];
-	strncpy(namecopy1, name, MAX_PATH_LEN);
+	strncpy(namecopy1, path, MAX_PATH_LEN);
 	namecopy1[MAX_PATH_LEN] = '\0';
 	char namecopy2[MAX_PATH_LEN + 1];
-	strncpy(namecopy2, name, MAX_PATH_LEN);
+	strncpy(namecopy2, path, MAX_PATH_LEN);
 	namecopy2[MAX_PATH_LEN] = '\0';
 	char* dname = dirname(namecopy1);
 	char* bname = basename(namecopy2);
@@ -663,32 +655,65 @@ int fat_unlink(char *path)
 	debug_printf("directory name: %s\n", dname);
 	debug_printf("file name: %s\n", bname);
 	int directory_sector = dir_lookup(dname);
+	int file_entry_number = file_lookup(bname, &directory_sector);
 
 	//read out the entry in give fat
 	fat_file_t f_entry;
 	read_file_entry(&f_entry, directory_sector, file_entry_number);
 	if (f_entry.attr.dir == 0) {
-		
+		for (int i = 0; i < NUM_HANDLES; ++i) {
+			if (file_handles[i].open == true) {
+				if (file_handles[i].file_sector == directory_sector && file_handles[i].file_offset == file_entry_number) {
+					file_handles[i].unlink = true;
 
-		
-		return 0;
+				}else{
+					f_entry.name[0] = deleted_file;
+					write_file_entry(f_entry, directory_sector, file_entry_number);
+					//set the entry and linked entry in fat to 00
+					int fat_entries_sector = bytes_sector() / (int)sizeof(uint16_t);
+					uint8_t fat_bytes[bytes_sector()];
+					read_block(start_of_fat(), &fat_bytes);
+					uint16_t fat_entries[fat_entries_sector];
+					memcpy(&fat_entries, &fat_bytes, (size_t)bytes_sector());
+
+					int next = f_entry.first_cluster;
+					while (fat_entries[next] != 0xffff){
+						write_fat_entry(next,(uint16_t)0x0000);
+						next = (uint16_t)fat_entries[fat_entries[next]];
+					}
+
+				}
+			}
+		}
 	}
-	/* check if there are any open file handles on the file */
-
-	/* if there are, set the unlink-on-close flag */
-	/* check that the "file" isn't actually a directory */
-	/* work along FAT chain, mark each cluster as free */
-	/* mark file entry as deleted, write entry to disk */
 	debug_printf("Cannot unlink a dir\n");
-	return -1;
+	return 0;
 }
 
 int fat_mkdir(char *path)
 {
 	(void)path;
 	/* check input arguments for errors */
+	if (!mounted) {
+		debug_printf("disk not mounted\n");
+		return -1;
+	}
 	/* traverse directories, find the parent directory it's in */
+	char namecopy1[MAX_PATH_LEN + 1];
+	strncpy(namecopy1, path, MAX_PATH_LEN);
+	namecopy1[MAX_PATH_LEN] = '\0';
+	char namecopy2[MAX_PATH_LEN + 1];
+	strncpy(namecopy2, path, MAX_PATH_LEN);
+	namecopy2[MAX_PATH_LEN] = '\0';
+	char* dname = dirname(namecopy1);
+	char* bname = basename(namecopy2);
 	/* check there isn't a file or directory with the same name already */
+	// int exist = file_lookup(bname, &dir_number);
+	// if (exist >= 0) {
+	// 	debug_printf("can not use same name\n");
+	// 	return -1;
+	// }
+
 	/* create a new file, then set its directory bit to true */
 	/* allocate a cluster for the directory */
 	/* make a memory buffer for the directory cluster, fill with zeros */
@@ -730,54 +755,18 @@ int fat_rmdir(char *path)
 
 int dir_create(char* bname, int directory_sector)
 {
-
-
-	(void) bname;
-	(void) directory_sector;
-
-
-
-
-	if(check_block(directory_sector))
-	{
-
-		file_create(bname, directory_sector);
-	}
-	else// handles for the situation that the block is already full
-	{
-		printf(" The block is full \n");
-
-
-		// int old_block = directory_sector - start_of_data;
-		// int new_block;
-		// int new_directory_sector;
-
-		// // there is only one block used to store the dir, and it's full
-		// if (fat_entries[old_block] == free_cluster)
-		// {
-		// 	//find an empty entry in fat
-		// 	for(new_block = 0; new_block < fat_entries_sector; ++new_block)
-		// 	{
-		// 		if ( fat_entries[new_block] == free_cluster)
-		// 		{
-		// 			write_fat_entry((uint16_t)old_block,(uint16_t)new_block);
-		// 			break;
-		// 		}
-		// 	}
-		// 	new_directory_sector = new_block + start_of_data;
-
-		// 	read_block(new_directory_sector, &dir_sector);
-		// 	memcpy(&dir_files, &dir_sector, (size_t)bytes_sector());
-
-		// }
-	}
-		// int new block
-	// printf(" *******old_block %d \n", old_block);
-	return 0;
-
+	
 }
 int file_create(char* bname, int directory_sector)
 {
+	// check whether block is already full
+	if(!check_block(directory_sector)){
+		printf(" The block is full \n");
+		//TODO
+		//find a new empty block
+		return -1;
+	}
+
 	int fat_entries_sector = bytes_sector() / (int)sizeof(uint16_t);
 	uint8_t fat_bytes[bytes_sector()];
 	read_block(start_of_fat(), &fat_bytes);

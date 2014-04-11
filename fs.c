@@ -19,21 +19,24 @@ int main(int argc, char **argv)
 	}
 	fat_mount("../Img/fat4m.img");
 	unsigned char buf[100];
-	// int file = fat_open("NOTES/WEEK2/WEEK2.TXT", 'r');
-	int file_r = fat_open("NOTES/WEEK2/WEEK2.TXT", 'r');
-	int file_w = fat_open("NOTES/WEEK4/WEEK4.TXT", 'a');
+	int file = fat_open("NOTES/WEEK3/TEST.TXT", 'w');
+	// int file_r = fat_open("NOTES/WEEK2/WEEK2.TXT", 'r');
+	// int file_w = fat_open("NOTES/WEEK4/WEEK4.TXT", 'a');
 
-	int rval = fat_read(file_r, &buf, 100);
-	printf("%s \n", buf);
-
-	int wval = fat_write(file_w, &buf, 100);
-
-	printf("=================\n");
-	printf("read %d bytes\n", rval);
-	printf("write %d bytes\n", wval);
+	// fat_unlink("NOTES/WEEK3/WEEK3.TXT");
 
 
-	fat_close(file_r);
+	// int rval = fat_read(file_r, &buf, 100);
+	// printf("%s \n", buf);
+
+	// int wval = fat_write(file_w, &buf, 100);
+
+	// printf("=================\n");
+	// printf("read %d bytes\n", rval);
+	// printf("write %d bytes\n", wval);
+
+
+	// fat_close(file_r);
 	fat_umount();
 	return EXIT_SUCCESS;
 }
