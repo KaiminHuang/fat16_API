@@ -409,8 +409,8 @@ int dir_lookup(char* path)
 	{
 		found = false;
 		debug_printf("looking for directory %s\n", dname_part);
-		printf("	====looking for directory %s\n", dname_part);
-		printf("	dir_entries_sector() = %d \n",dir_entries_sector());
+		// printf("	====looking for directory %s\n", dname_part);
+		// printf("	dir_entries_sector() = %d \n",dir_entries_sector());
 		while(!found)
 		{
 			//read sector into a memory block
@@ -426,7 +426,7 @@ int dir_lookup(char* path)
 				if(dir_files[i].name[0] == 0x00)
 				{
 					//not found, don't need to keep looking
-					printf("	//not found, don't need to keep looking");
+					// printf("	//not found, don't need to keep looking");
 
 					break;
 				}
@@ -451,7 +451,7 @@ int dir_lookup(char* path)
 				{
 					//got a directory with the correct name
 					dlocation = data_cluster_to_sector(dir_files[i].first_cluster);
-					printf("	dir_files[i].first_cluster: %d \n", dir_files[i].first_cluster);
+					// printf("	dir_files[i].first_cluster: %d \n", dir_files[i].first_cluster);
 					found = true;
 					break;
 				}
@@ -495,7 +495,7 @@ int dir_lookup(char* path)
 				}
 			}
 		}
-		printf("	dlocation: %d \n", dlocation);
+		// printf("	dlocation: %d \n", dlocation);
 
 		dname_part = strtok(NULL, "/");
 	}
