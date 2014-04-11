@@ -18,8 +18,10 @@ int main(int argc, char **argv)
 		debug_printing = false;
 	}
 	fat_mount("../Img/fat4m.img");
-	unsigned char buf[100];
-	int file = fat_open("NOTES/WEEK3/TEST.TXT", 'w');
+	// unsigned char buf[100];
+	// int file = fat_open("NOTES/WEEK3/TEST.TXT", 'w');
+	fat_mkdir("NOTES/DDDDDD");
+
 	// int file_r = fat_open("NOTES/WEEK2/WEEK2.TXT", 'r');
 	// int file_w = fat_open("NOTES/WEEK4/WEEK4.TXT", 'a');
 

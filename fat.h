@@ -90,6 +90,6 @@ int fat_rmdir(char *path);
 /** create a directory
 */
 int file_create(char* bname, int directory_sector);
-int dir_create(char* bname, int directory_sector);
+int dir_create(char* dir_name, int directory_sector, int entry_num);
 int check_block(int directory_sector);
 #endif //FAT_H
